@@ -18,10 +18,7 @@ from pydantic import BaseModel
 import wave
 import logging
 
-try:
-    import openai  # type: ignore
-except ImportError:  # pragma: no cover - optional dependency
-    openai = None
+import openai
 
 
 Preset = Literal[
