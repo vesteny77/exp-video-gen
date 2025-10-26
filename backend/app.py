@@ -17,9 +17,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import wave
 import logging
-
+import subprocess
 import openai
-
+import os
 from audio2face_api_client.nim_a2f_client import run
 from broomsman_char import run_blend_external
 from belinda_char import run_named_external
@@ -132,22 +132,47 @@ async def generate_video(payload: VideoRequest) -> dict[str, str]:
         raise HTTPException(status_code=400, detail="Provided audio_path does not exist")
     fps=30
     artifact_name = f"{_timestamp_slug()}_{payload.preset}.mp4"
+    print(payload.preset)
     artifact_path = VIDEO_OUTPUT / artifact_name
     if payload.preset=="belinda":
         blend_file="./resources/belinda.blend"
         csv_path=await run(source_audio, "./audio2face_api_client/config/config_claire.yml")
         run_named_external(BLENDER_PATH, blend_file, csv_path, source_audio, artifact_path, fps)
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-framerate", str(fps),
+            "-i", "/tmp/render_frames_%04d.png",
+            "-i", str(source_audio),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-shortest",
+            str(artifact_path)
+        ]
+        import time
+        print("Running ffmpeg:", " ".join(ffmpeg_cmd))
+        # time.sleep(10)
+        subprocess.run(ffmpeg_cmd, check=True)
+        # time.sleep(10)
+        print("✅ Done! Video saved at:", artifact_path)
 
     elif payload.preset=="broom_salesman":
         blend_file="./resources/broomsman.blend"
         csv_path=await run(source_audio, "./audio2face_api_client/config/config_mark.yml")
-        run_blend_external(BLENDER_PATH, blend_file, csv_path, source_audio, artifact_path, fps)
+        run_blend_external(BLENDER_PATH, blend_file, str(csv_path), source_audio, artifact_path, fps)        
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-framerate", str(fps),
+            "-i", "/tmp/render_frames_%04d.png",
+            "-i", str(source_audio),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-shortest",
+            str(artifact_path)
+        ]
+        print("Running ffmpeg:", " ".join(ffmpeg_cmd))
+        # time.sleep(10)
+        subprocess.run(ffmpeg_cmd, check=True)
+        # time.sleep(10)
+        print("✅ Done! Video saved at:", artifact_path)
 
-    artifact_path.write_text(
-        f"Placeholder video for preset={payload.preset}\n"
-        f"Generated at {datetime.now(timezone.utc).isoformat()}\n"
-        f"Source audio: {payload.audio_path}\n"
-    )
     return {
         "video_path": str(artifact_path),
         "video_url": f"/media/video/{artifact_name}",
