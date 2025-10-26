@@ -12,8 +12,9 @@
 
 import argparse
 import asyncio
-import a2f.client.auth
-import a2f.client.service
+
+from .a2f.client.auth import *
+from .a2f.client.service import *
 from nvidia_ace.services.a2f_controller.v1_pb2_grpc import A2FControllerServiceStub
 from typing import List, Tuple, Optional
 
@@ -43,12 +44,12 @@ async def run(file: str, config: str, metadata_args: Optional[List[Tuple[str, st
         ]
 
     # Open gRPC channel and get Audio2Face stub
-    channel = a2f.client.auth.create_channel(uri="grpc.nvcf.nvidia.com:443", use_ssl=True, metadata=metadata_args)
+    channel = create_channel(uri="grpc.nvcf.nvidia.com:443", use_ssl=True, metadata=metadata_args)
     stub = A2FControllerServiceStub(channel)
 
     stream = stub.ProcessAudioStream()
-    write_task = asyncio.create_task(a2f.client.service.write_to_stream(stream, config, file))
-    read_task = asyncio.create_task(a2f.client.service.read_from_stream(stream))
+    write_task = asyncio.create_task(write_to_stream(stream, config, file))
+    read_task = asyncio.create_task(read_from_stream(stream))
 
     await write_task
     csv_path=await read_task

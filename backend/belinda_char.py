@@ -252,7 +252,7 @@ def run_named_external(
     out_video: str,
     fps: int,
     opt_arg: Optional[str] = None,
-    collection_name_arg: str = "grp_blendShapes_01",
+    collection_name_arg: str = None,
     extra_args: Optional[List[str]] = None
 ) -> subprocess.CompletedProcess:
     """

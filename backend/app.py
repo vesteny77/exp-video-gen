@@ -20,7 +20,7 @@ import logging
 
 import openai
 
-from audio2face_api_client import run
+from audio2face_api_client.nim_a2f_client import run
 from broomsman_char import run_blend_external
 from belinda_char import run_named_external
 
@@ -46,7 +46,7 @@ class VideoRequest(BaseModel):
     preset: Preset
     audio_path: str
 
-BLENDER_PATH=""
+BLENDER_PATH="/Applications/Blender.app/Contents/MacOS/Blender"
 NVIDIA_API_KEY = "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"
 BOSON_API_KEY = "bai-C3A4nRfSkAGBZixYLVlmoOfHTjnOxv64lg-ji0I1FZIrSeN4"
 if openai and BOSON_API_KEY:
@@ -136,7 +136,7 @@ async def generate_video(payload: VideoRequest) -> dict[str, str]:
     if payload.preset=="belinda":
         blend_file="./resources/belinda.blend"
         csv_path=await run(source_audio, "./audio2face_api_client/config/config_claire.yml")
-        run_named_external(BLENDER_PATH, blend_file, source_audio, artifact_path, fps)
+        run_named_external(BLENDER_PATH, blend_file, csv_path, source_audio, artifact_path, fps)
 
     elif payload.preset=="broom_salesman":
         blend_file="./resources/broomsman.blend"
