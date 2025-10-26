@@ -14,7 +14,7 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
+import wave
 
 Preset = Literal[
     "belinda",
