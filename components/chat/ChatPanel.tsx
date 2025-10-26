@@ -456,6 +456,7 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
       if (message.role !== "assistant") return
 
       const assistantMessage = message as unknown as {
+        id?: string
         toolCalls?: Array<{ id: string; function?: { name?: string; arguments?: string } }>
       }
 
@@ -464,16 +465,26 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
         return
       }
 
-      const messageId = (message as any).id ?? JSON.stringify(message)
-      if (!processedAssistantScripts.current.has(messageId)) {
-        const content = extractMessageText(message)
-        if (content.trim().length > 0) {
-          processedAssistantScripts.current.add(messageId)
-          send({ type: "SCRIPT_READY", script: content.trim() })
-        }
+      const messageId = assistantMessage.id
+      if (!messageId || processedAssistantScripts.current.has(messageId)) {
+        return
       }
+
+      const content = extractMessageText(message).trim()
+      if (!content) {
+        return
+      }
+
+      const wordCount = content.split(/\s+/).filter(Boolean).length
+      const sentenceCount = (content.match(/[.!?]/g) ?? []).length
+      if (wordCount < 20 || sentenceCount < 2) {
+        return
+      }
+
+      processedAssistantScripts.current.add(messageId)
+      send({ type: "SCRIPT_READY", script: content })
     })
-  }, [messages, send])
+  }, [messages, send, extractMessageText])
 
   return (
     <div className="h-full flex flex-col">
