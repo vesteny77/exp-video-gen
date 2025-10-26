@@ -8,12 +8,20 @@ services.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import wave
+import logging
+
+try:
+    import openai  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency
+    openai = None
 
 
 Preset = Literal[
@@ -37,8 +45,11 @@ class VideoRequest(BaseModel):
     preset: Preset
     audio_path: str
 
-BOSON_API_KEY = ""
-client = openai.Client(api_key=BOSON_API_KEY, base_url="https://hackathon.boson.ai/v1")
+BOSON_API_KEY = "bai-C3A4nRfSkAGBZixYLVlmoOfHTjnOxv64lg-ji0I1FZIrSeN4"
+if openai and BOSON_API_KEY:
+    client = openai.Client(api_key=BOSON_API_KEY, base_url="https://hackathon.boson.ai/v1")
+else:
+    client = None
 
 app = FastAPI(title="Demo Generation Backend", version="0.1.0")
 
@@ -49,6 +60,9 @@ VIDEO_OUTPUT = BASE_OUTPUT / "video"
 
 for directory in (AUDIO_OUTPUT, VIDEO_OUTPUT):
     directory.mkdir(parents=True, exist_ok=True)
+
+app.mount("/media/audio", StaticFiles(directory=AUDIO_OUTPUT), name="audio-files")
+app.mount("/media/video", StaticFiles(directory=VIDEO_OUTPUT), name="video-files")
 
 
 def _timestamp_slug() -> str:
@@ -67,26 +81,39 @@ async def generate_audio(payload: AudioRequest) -> dict[str, str]:
     artifact_name = f"{_timestamp_slug()}_{payload.preset}.wav"
     artifact_path = AUDIO_OUTPUT / artifact_name
 
-    # TODO: Replace this with real audio bytes from TTS.
-    tts_response = client.audio.speech.create(
-        model="higgs-audio-generation-Hackathon",
-        voice=payload.preset,
-        input=payload.script,
-        response_format="pcm"
-    )
-    pcm_data = tts_response.content
-
     num_channels = 1
     sample_width = 2
     sample_rate = 24000
 
-    with wave.open(artifact_path, "wb") as wav_file:
+    pcm_data: bytes
+    if client:
+        try:
+            logging.info("Generating audio with Higgs Audio ...")
+            tts_response = client.audio.speech.create(
+                model="higgs-audio-generation-Hackathon",
+                voice=payload.preset,
+                input=payload.script,
+                response_format="pcm",
+            )
+            logging.info("Generation completed!")
+            pcm_data = tts_response.content  # type: ignore[attr-defined]
+        except Exception as exc:
+            print(f"[backend] TTS generation failed, falling back to silence: {exc}")
+            pcm_data = b"\x00\x00" * sample_rate
+    else:
+        # Fallback: write 1 second of silence so the frontend always receives a valid WAV.
+        pcm_data = b"\x00\x00" * sample_rate
+
+    with wave.open(str(artifact_path), "wb") as wav_file:
         wav_file.setnchannels(num_channels)
         wav_file.setsampwidth(sample_width)
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(pcm_data)
 
-    return {"audio_path": str(artifact_path)}
+    return {
+        "audio_path": str(artifact_path),
+        "audio_url": f"/media/audio/{artifact_name}",
+    }
 
 
 @app.post("/video/generate")
@@ -107,9 +134,10 @@ async def generate_video(payload: VideoRequest) -> dict[str, str]:
     # TODO: Replace this with actual rendered video bytes.
     artifact_path.write_text(
         f"Placeholder video for preset={payload.preset}\n"
-        f"Generated at {datetime.now(datetime.timezone.utc).isoformat()}\n"
+        f"Generated at {datetime.now(timezone.utc).isoformat()}\n"
         f"Source audio: {payload.audio_path}\n"
     )
-
-    return {"video_path": str(artifact_path)}
-
+    return {
+        "video_path": str(artifact_path),
+        "video_url": f"/media/video/{artifact_name}",
+    }

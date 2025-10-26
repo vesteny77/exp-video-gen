@@ -313,7 +313,8 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
 
         send({ type: "GENERATE_VIDEO" })
 
-        const job = await generateVideo(audioUrl, args?.avatarId)
+        const presetForVideo = context.voicePreset || args?.avatarId || 'belinda'
+        const job = await generateVideo(audioUrl, presetForVideo)
         if (!job?.jobId) {
           throw new Error("Video rendering failed to start.")
         }
@@ -333,7 +334,7 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
         }
       },
     },
-    [context.audioUrl, context.audioConfirmed, send, trackVideoJob],
+    [context.audioUrl, context.audioConfirmed, context.voicePreset, send, trackVideoJob],
   )
 
   useCopilotReadable({

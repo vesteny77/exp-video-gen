@@ -142,7 +142,8 @@ export default function DashboardPage() {
     send({ type: 'GENERATE_VIDEO' })
 
     try {
-      const job = await generateVideo(audioUrl, 'default')
+      const preset = context.voicePreset || 'belinda'
+      const job = await generateVideo(audioUrl, preset)
       if (!job?.jobId) {
         throw new Error('Video generation did not return a job identifier.')
       }
@@ -166,7 +167,7 @@ export default function DashboardPage() {
         message: error instanceof Error ? error.message : 'Video generation failed.',
       })
     }
-  }, [context.audioUrl, context.audioConfirmed, send, trackVideoJob])
+  }, [context.audioUrl, context.audioConfirmed, context.voicePreset, send, trackVideoJob])
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">

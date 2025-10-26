@@ -25,6 +25,8 @@ const DEMO_MEDIA: Record<
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const DEMO_MODE = process.env.DEMO_PIPELINE === 'true' || process.env.NEXT_PUBLIC_DEMO_PIPELINE === 'true'
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:8000'
 
 // In-memory job storage for mock backend
 export interface Job {
@@ -119,6 +121,11 @@ class JobStore {
       }
     }
 
+    if (!DEMO_MODE && job.type === 'audio') {
+      await this.processBackendAudio(jobId)
+      return
+    }
+
     if (DEMO_MODE && job.type === 'video') {
       const audioUrl: string | undefined = job.input?.audioUrl
       const mediaKey = audioUrl
@@ -131,90 +138,12 @@ class JobStore {
       }
     }
 
-    // Update to processing
-    this.updateJob(jobId, { status: 'processing', progress: 10 })
-
-    // Simulate processing based on job type
-    const progressSteps = [20, 40, 60, 80, 90]
-    const delay = job.type === 'script' ? 400 : job.type === 'audio' ? 600 : 1000
-
-    for (const progress of progressSteps) {
-      await new Promise(resolve => setTimeout(resolve, delay))
-      this.updateJob(jobId, { progress })
+    if (!DEMO_MODE && job.type === 'video') {
+      await this.processBackendVideo(jobId)
+      return
     }
 
-    // Complete the job with result
-    let result: any
-
-    switch (job.type) {
-      case 'script': {
-        const idea: string | undefined = job.input.idea
-        const scriptDraft: string | undefined = job.input.script
-        const instructions: string | undefined = job.input.instructions
-
-        const baseScript = scriptDraft
-          ? scriptDraft.trim()
-          : `Welcome to our presentation about "${idea || 'this amazing topic'}".
-
-In today's video, we'll explore the fundamental concepts and practical applications of this topic.
-
-First, let's understand what makes this subject so important in our current context. ${idea || 'This topic'} represents a significant advancement in its field, offering unique solutions to contemporary challenges.
-
-Throughout this presentation, we'll cover:
-- The core principles and foundations
-- Real-world applications and benefits
-- Future implications and opportunities
-
-By the end of this video, you'll have a comprehensive understanding of how ${idea || 'this'} can transform your perspective and approach.
-
-Let's dive in and discover the fascinating world of ${idea || 'innovation'} together.
-
-Thank you for joining us on this educational journey.`
-
-        const wordCount = baseScript.split(/\s+/).filter(Boolean).length
-        const estimatedDuration = Math.max(1, Math.round((wordCount / 160) * 60))
-
-        result = {
-          script: baseScript,
-          wordCount,
-          estimatedDuration,
-          idea: idea ?? null,
-          instructions: instructions ?? null,
-          updatedAt: new Date().toISOString(),
-        }
-        break
-      }
-
-      case 'audio': {
-        result = {
-          audioUrl: '/samples/demo-audio.wav',
-          duration: 14.24,
-          preset: job.input.preset,
-          script: job.input.script,
-          updatedAt: new Date().toISOString(),
-        }
-        break
-      }
-
-      case 'video': {
-        result = {
-          videoUrl: '/samples/demo-video.mp4',
-          duration: 10,
-          format: 'mp4',
-          audioUrl: job.input.audioUrl,
-          updatedAt: new Date().toISOString(),
-        }
-        break
-      }
-    }
-
-    // Final update
-    await new Promise(resolve => setTimeout(resolve, delay))
-    this.updateJob(jobId, {
-      status: 'completed',
-      progress: 100,
-      result,
-    })
+    await defaultJobProcessor(jobId, job, this.updateJob.bind(this))
   }
 
   private async processDemoAudio(jobId: string, presetKey: string) {
@@ -285,8 +214,190 @@ Thank you for joining us on this educational journey.`
       },
     })
   }
+
+  private async processBackendAudio(jobId: string) {
+    const job = this.jobs.get(jobId)
+    if (!job) return
+
+    const preset = job.input?.preset
+    const script = job.input?.script
+
+    if (!preset || !script) {
+      this.updateJob(jobId, {
+        status: 'failed',
+        error: 'Audio job missing preset or script.',
+      })
+      return
+    }
+
+    this.updateJob(jobId, { status: 'processing', progress: 15 })
+
+    try {
+      const data = await callBackend<{ audio_path: string; audio_url?: string }>("/audio/generate", {
+        preset,
+        script,
+      })
+
+      this.updateJob(jobId, { progress: 80 })
+
+      this.updateJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        result: {
+          audioUrl: toPublicUrl(data.audio_url, data.audio_path, 'audio'),
+          duration: null,
+          preset,
+          script,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+    } catch (error) {
+      console.error('[jobStore] Audio backend request failed, falling back to sample:', error)
+      this.updateJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        result: {
+          audioUrl: '/samples/demo-audio.wav',
+          duration: 15,
+          preset,
+          script,
+          updatedAt: new Date().toISOString(),
+          fallback: true,
+        },
+      })
+    }
+  }
+
+  private async processBackendVideo(jobId: string) {
+    const job = this.jobs.get(jobId)
+    if (!job) return
+
+    const audioPath: string | undefined = job.input?.audioUrl
+    if (!audioPath) {
+      this.updateJob(jobId, {
+        status: 'failed',
+        error: 'Video job missing audio URL.',
+      })
+      return
+    }
+
+    const preset: string = job.input?.avatarId ?? job.input?.preset ?? 'belinda'
+
+    this.updateJob(jobId, { status: 'processing', progress: 15 })
+
+    try {
+      const data = await callBackend<{ video_path: string; video_url?: string }>("/video/generate", {
+        preset,
+        audio_path: audioPath,
+      })
+
+      this.updateJob(jobId, { progress: 85 })
+
+      this.updateJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        result: {
+          videoUrl: toPublicUrl(data.video_url, data.video_path, 'video'),
+          duration: null,
+          format: 'mp4',
+          preset,
+          audioUrl: audioPath,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+    } catch (error) {
+      console.error('[jobStore] Video backend request failed, falling back to sample:', error)
+      this.updateJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        result: {
+          videoUrl: '/samples/demo-video.mp4',
+          duration: 10,
+          format: 'mp4',
+          preset,
+          audioUrl: audioPath,
+          updatedAt: new Date().toISOString(),
+          fallback: true,
+        },
+      })
+    }
+  }
+}
+
+async function defaultJobProcessor(jobId: string, job: Job, updateJob: JobStore['updateJob']) {
+  updateJob(jobId, { status: 'processing', progress: 10 })
+
+  const progressSteps = [25, 45, 65, 85]
+  const delay = job.type === 'script' ? 400 : 800
+
+  for (const progress of progressSteps) {
+    await sleep(delay)
+    updateJob(jobId, { progress })
+  }
+
+  let result: any = null
+
+  if (job.type === 'script') {
+    const baseScript = (job.input?.script || job.input?.idea || 'Script placeholder').toString()
+
+    result = {
+      script: baseScript,
+      wordCount: baseScript.split(/\s+/).filter(Boolean).length,
+      estimatedDuration: 60,
+      updatedAt: new Date().toISOString(),
+    }
+  }
+
+  updateJob(jobId, {
+    status: 'completed',
+    progress: 100,
+    result,
+  })
 }
 
 // Export singleton instance
 export const jobStore = new JobStore()
-const DEMO_MODE = process.env.DEMO_PIPELINE === 'true' || process.env.NEXT_PUBLIC_DEMO_PIPELINE === 'true'
+async function callBackend<T>(path: string, body: Record<string, any>) {
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    throw new Error(errorBody.detail || errorBody.error || `Backend request failed (${response.status})`)
+  }
+
+  return (await response.json()) as T
+}
+
+function toPublicUrl(providedUrl: string | undefined, filePath: string | undefined, type: 'audio' | 'video'): string {
+  if (providedUrl) {
+    try {
+      return new URL(providedUrl, BACKEND_URL).toString()
+    } catch {
+      return providedUrl
+    }
+  }
+
+  if (!filePath) {
+    return ''
+  }
+
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath
+  }
+
+  const filename = filePath.split(/[/\\]/).pop()
+  if (!filename) {
+    return filePath
+  }
+
+  const mount = type === 'audio' ? '/media/audio/' : '/media/video/'
+  try {
+    return new URL(mount + filename, BACKEND_URL).toString()
+  } catch {
+    return mount + filename
+  }
+}
