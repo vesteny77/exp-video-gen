@@ -168,19 +168,21 @@ def _run_blend_in_blender(
     bpy.ops.render.render(animation=True)
     print("Rendering complete. Frames saved to:", frames_dir)
 
+
+
     # Combine frames and audio
-    ffmpeg_cmd = [
-        "ffmpeg", "-y",
-        "-framerate", str(fps),
-        "-i", frames_pattern := os.path.join(frames_dir, frames_prefix + "%04d.png"),
-        "-i", audio_path,
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-shortest",
-        out_video
-    ]
-    print("Running ffmpeg:", " ".join(ffmpeg_cmd))
-    subprocess.run(ffmpeg_cmd, check=True)
-    print("✅ Done! Video saved at:", out_video)
+    # ffmpeg_cmd = [
+    #     "ffmpeg", "-y",
+    #     "-framerate", str(fps),
+    #     "-i", frames_pattern := os.path.join(frames_dir, frames_prefix + "%04d.png"),
+    #     "-i", audio_path,
+    #     "-c:v", "libx264", "-pix_fmt", "yuv420p",
+    #     "-c:a", "aac", "-shortest",
+    #     out_video
+    # ]
+    # print("Running ffmpeg:", " ".join(ffmpeg_cmd))
+    # subprocess.run(ffmpeg_cmd, check=True)
+    # print("✅ Done! Video saved at:", out_video)
 
 # -------------------------
 # External launcher (system Python) implementation
