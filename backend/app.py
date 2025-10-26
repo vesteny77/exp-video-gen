@@ -20,6 +20,10 @@ import logging
 
 import openai
 
+from audio2face_api_client import run
+from broomsman_char import run_blend_external
+from belinda_char import run_named_external
+
 
 Preset = Literal[
     "belinda",
@@ -42,6 +46,8 @@ class VideoRequest(BaseModel):
     preset: Preset
     audio_path: str
 
+BLENDER_PATH=""
+NVIDIA_API_KEY = "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"
 BOSON_API_KEY = "bai-C3A4nRfSkAGBZixYLVlmoOfHTjnOxv64lg-ji0I1FZIrSeN4"
 if openai and BOSON_API_KEY:
     client = openai.Client(api_key=BOSON_API_KEY, base_url="https://hackathon.boson.ai/v1")
@@ -124,11 +130,19 @@ async def generate_video(payload: VideoRequest) -> dict[str, str]:
     source_audio = Path(payload.audio_path)
     if not source_audio.exists():
         raise HTTPException(status_code=400, detail="Provided audio_path does not exist")
-
+    fps=30
     artifact_name = f"{_timestamp_slug()}_{payload.preset}.mp4"
     artifact_path = VIDEO_OUTPUT / artifact_name
+    if payload.preset=="belinda":
+        blend_file="./resources/belinda.blend"
+        csv_path=await run(source_audio, "./audio2face_api_client/config/config_claire.yml")
+        run_named_external(BLENDER_PATH, blend_file, source_audio, artifact_path, fps)
 
-    # TODO: Replace this with actual rendered video bytes.
+    elif payload.preset=="broom_salesman":
+        blend_file="./resources/broomsman.blend"
+        csv_path=await run(source_audio, "./audio2face_api_client/config/config_mark.yml")
+        run_blend_external(BLENDER_PATH, blend_file, csv_path, source_audio, artifact_path, fps)
+
     artifact_path.write_text(
         f"Placeholder video for preset={payload.preset}\n"
         f"Generated at {datetime.now(timezone.utc).isoformat()}\n"
