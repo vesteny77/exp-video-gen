@@ -56,6 +56,7 @@ export async function generateScript(
 
 export async function generateAudio(script: string, preset: string): Promise<{
   audioUrl: string
+  audioPath?: string | null
   duration: number
   preset: string
 } | null> {
@@ -63,6 +64,7 @@ export async function generateAudio(script: string, preset: string): Promise<{
     const data = await invokePipelineTool<{
       type: string
       audioUrl: string
+      audioPath?: string | null
       duration: number
       preset: string
     }>("generate_audio", {
@@ -72,6 +74,7 @@ export async function generateAudio(script: string, preset: string): Promise<{
 
     return {
       audioUrl: data.audioUrl,
+      audioPath: data.audioPath ?? null,
       duration: data.duration,
       preset: data.preset,
     }
@@ -83,6 +86,7 @@ export async function generateAudio(script: string, preset: string): Promise<{
 export async function generateVideo(
   audioUrl: string,
   avatarId?: string,
+  audioPath?: string,
 ): Promise<{
   jobId: string
   status: string
@@ -98,6 +102,7 @@ export async function generateVideo(
       message?: string
     }>("generate_video", {
       audioUrl,
+      audioPath: audioPath ?? audioUrl,
       avatarId: avatarId ?? "default",
     })
 

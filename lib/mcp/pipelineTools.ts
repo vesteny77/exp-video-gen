@@ -165,6 +165,7 @@ export function getPipelineMcpTools(): Record<string, MCPTool> {
           type: "AUDIO_READY",
           jobId: job.id,
           audioUrl: result.audioUrl,
+          audioPath: (result as any).audioPath ?? (result as any).audio_path ?? null,
           duration: result.duration,
           preset: result.preset,
           generatedAt: job.updatedAt,
@@ -181,14 +182,19 @@ export function getPipelineMcpTools(): Record<string, MCPTool> {
           description: "Audio URL to drive the avatar animation.",
           required: true,
         },
+        audioPath: {
+          type: "string",
+          description: "Local audio path for the renderer (optional).",
+        },
         avatarId: {
           type: "string",
           description: "Optional avatar identifier. Defaults to 'default'.",
         },
       }),
-      async execute(params: { audioUrl: string; avatarId?: string }) {
+      async execute(params: { audioUrl: string; audioPath?: string; avatarId?: string }) {
         const job = jobStore.createJob("video", {
           audioUrl: params.audioUrl,
+          audioPath: params.audioPath ?? params.audioUrl,
           avatarId: params.avatarId ?? "default",
         })
 

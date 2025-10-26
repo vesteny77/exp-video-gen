@@ -289,7 +289,7 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
           throw new Error("Audio generation failed.")
         }
 
-        send({ type: "AUDIO_READY", audioUrl: result.audioUrl })
+        send({ type: "AUDIO_READY", audioUrl: result.audioUrl, audioPath: result.audioPath ?? null })
         return {
           message: `Audio generated with the ${preset} voice. Approve or regenerate?`,
         }
@@ -314,7 +314,7 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
         send({ type: "GENERATE_VIDEO" })
 
         const presetForVideo = context.voicePreset || args?.avatarId || 'belinda'
-        const job = await generateVideo(audioUrl, presetForVideo)
+        const job = await generateVideo(audioUrl, presetForVideo, context.audioPath ?? audioUrl)
         if (!job?.jobId) {
           throw new Error("Video rendering failed to start.")
         }
@@ -347,6 +347,7 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
       scriptConfirmed: context.scriptConfirmed,
       audioConfirmed: context.audioConfirmed,
       hasAudio: !!context.audioUrl,
+      audioPath: context.audioPath,
       hasVideo: !!context.videoUrl,
       voicePreset: context.voicePreset,
       videoJob: context.videoJob,
@@ -417,7 +418,11 @@ export function ChatPanel({ pipelineService, initialMessage }: ChatPanelProps) {
                   send({ type: "SELECT_VOICE_PRESET", preset: resolved })
                 }
               }
-              send({ type: "AUDIO_READY", audioUrl: payload.audioUrl })
+              send({
+                type: "AUDIO_READY",
+                audioUrl: payload.audioUrl,
+                audioPath: payload.audioPath ?? payload.audio_path ?? null,
+              })
             }
             break
           case "VIDEO_JOB_STARTED":

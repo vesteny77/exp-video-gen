@@ -15,6 +15,7 @@ export interface PipelineContext {
   script: string
   scriptConfirmed: boolean
   audioConfirmed: boolean
+  audioPath: string | null
   voicePreset: VoicePreset | null
   audioUrl: string | null
   videoUrl: string | null
@@ -44,7 +45,7 @@ export type PipelineEvent =
   | { type: 'CONFIRM_AUDIO' }
   | { type: 'SELECT_VOICE_PRESET'; preset: VoicePreset }
   | { type: 'GENERATE_AUDIO' }
-  | { type: 'AUDIO_READY'; audioUrl: string }
+  | { type: 'AUDIO_READY'; audioUrl: string; audioPath?: string | null }
   | { type: 'GENERATE_VIDEO' }
   | { type: 'VIDEO_READY'; videoUrl: string }
   | { type: 'VIDEO_JOB_STATUS'; jobId: string; status: 'queued' | 'processing' | 'completed' | 'failed'; progress: number; message?: string | null }

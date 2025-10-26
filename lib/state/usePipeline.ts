@@ -44,7 +44,7 @@ export function usePipelineState(service: ReturnType<typeof useActorRef<typeof p
     ['scriptReady', 'audioReady', 'videoReady'].includes(state as string) &&
     isAudioEnabled &&
     !!context.voicePreset
-  const isVideoEnabled = !!context.audioUrl && context.audioConfirmed
+  const isVideoEnabled = !!context.audioUrl && !!context.audioPath && context.audioConfirmed
   const canGenerateVideo =
     ['audioReady', 'videoReady'].includes(state as string) &&
     isVideoEnabled &&
@@ -61,6 +61,7 @@ export function usePipelineState(service: ReturnType<typeof useActorRef<typeof p
     canGenerateAudio,
     canGenerateVideo,
     isProcessing,
+    audioPath: context.audioPath,
     send: service.send,
   }
 }

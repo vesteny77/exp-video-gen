@@ -13,6 +13,7 @@ export const pipelineMachine = createMachine({
     script: '',
     scriptConfirmed: false,
     audioConfirmed: false,
+    audioPath: null,
     voicePreset: null,
     audioUrl: null,
     videoUrl: null,
@@ -44,6 +45,7 @@ export const pipelineMachine = createMachine({
             scriptConfirmed: () => false,
             audioConfirmed: () => false,
             voicePreset: () => null,
+            audioPath: () => null,
             audioUrl: () => null,
             videoUrl: () => null,
             jobIds: ({ context }) => ({ ...context.jobIds, audio: null, video: null }),
@@ -72,6 +74,7 @@ export const pipelineMachine = createMachine({
             audioConfirmed: () => false,
             staleFlags: () => ({ audio: false, video: false }),
             voicePreset: () => null,
+            audioPath: () => null,
             audioUrl: () => null,
             videoUrl: () => null,
             jobIds: ({ context }) => ({ ...context.jobIds, audio: null, video: null }),
@@ -93,6 +96,7 @@ export const pipelineMachine = createMachine({
             audioConfirmed: () => false,
             staleFlags: () => ({ audio: false, video: false }),
             voicePreset: () => null,
+            audioPath: () => null,
             audioUrl: () => null,
             videoUrl: () => null,
             jobIds: ({ context }) => ({ ...context.jobIds, audio: null, video: null }),
@@ -114,6 +118,7 @@ export const pipelineMachine = createMachine({
             scriptConfirmed: () => false,
             audioConfirmed: () => false,
             voicePreset: () => null,
+            audioPath: () => null,
             audioUrl: () => null,
             videoUrl: () => null,
             jobIds: ({ context }) => ({ ...context.jobIds, audio: null, video: null }),
@@ -141,6 +146,7 @@ export const pipelineMachine = createMachine({
             scriptConfirmed: () => false,
             audioConfirmed: () => false,
             voicePreset: () => null,
+            audioPath: () => null,
             audioUrl: () => null,
             videoUrl: () => null,
             jobIds: ({ context }) => ({ ...context.jobIds, audio: null, video: null }),
@@ -163,6 +169,7 @@ export const pipelineMachine = createMachine({
     audioGenerating: {
       entry: assign({
         audioUrl: () => null,
+        audioPath: () => null,
         staleFlags: () => ({ audio: false, video: true }),
         audioConfirmed: () => false,
         jobIds: ({ context }) => ({ ...context.jobIds, audio: context.jobIds.audio }),
@@ -174,6 +181,10 @@ export const pipelineMachine = createMachine({
             audioUrl: ({ event }) => {
               if (event.type === 'AUDIO_READY') return event.audioUrl
               return null
+            },
+            audioPath: ({ event }) => {
+              if (event.type !== 'AUDIO_READY') return null
+              return event.audioPath ?? event.audioUrl ?? null
             },
             scriptConfirmed: () => true,
             audioConfirmed: () => false,
@@ -193,6 +204,7 @@ export const pipelineMachine = createMachine({
             },
             staleFlags: () => ({ audio: true, video: true }),
             audioUrl: () => null,
+            audioPath: () => null,
             videoUrl: () => null,
             scriptConfirmed: () => false,
             audioConfirmed: () => false,
@@ -229,7 +241,7 @@ export const pipelineMachine = createMachine({
           target: 'audioGenerating',
         },
         GENERATE_VIDEO: {
-          guard: ({ context }) => context.audioConfirmed && !!context.audioUrl,
+          guard: ({ context }) => context.audioConfirmed && !!context.audioUrl && !!context.audioPath,
           target: 'videoGenerating',
         },
         GO_BACK_TO_STEP: [
@@ -315,6 +327,7 @@ export const pipelineMachine = createMachine({
             },
             staleFlags: () => ({ audio: true, video: true }),
             audioUrl: () => null,
+            audioPath: () => null,
             videoUrl: () => null,
             voicePreset: () => null,
             scriptConfirmed: () => false,
@@ -343,7 +356,7 @@ export const pipelineMachine = createMachine({
           target: 'audioGenerating',
         },
         GENERATE_VIDEO: {
-          guard: ({ context }) => context.audioConfirmed && !!context.audioUrl,
+          guard: ({ context }) => context.audioConfirmed && !!context.audioUrl && !!context.audioPath,
           target: 'videoGenerating',
         },
         GO_BACK_TO_STEP: [
@@ -368,6 +381,7 @@ export const pipelineMachine = createMachine({
             audioConfirmed: () => false,
             voicePreset: () => null,
             audioUrl: () => null,
+            audioPath: () => null,
             videoUrl: () => null,
             jobIds: () => ({ script: null, audio: null, video: null }),
             videoJob: () => ({ id: null, status: 'idle', progress: 0, message: null }),

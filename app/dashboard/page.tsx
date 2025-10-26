@@ -135,6 +135,9 @@ export default function DashboardPage() {
     const audioUrl = context.audioUrl
     if (!audioUrl) return
 
+    const audioPath = context.audioPath ?? context.audioUrl
+    if (!audioPath) return
+
     if (!context.audioConfirmed) {
       send({ type: 'CONFIRM_AUDIO' })
     }
@@ -143,7 +146,7 @@ export default function DashboardPage() {
 
     try {
       const preset = context.voicePreset || 'belinda'
-      const job = await generateVideo(audioUrl, preset)
+      const job = await generateVideo(audioUrl, preset, audioPath)
       if (!job?.jobId) {
         throw new Error('Video generation did not return a job identifier.')
       }
@@ -167,7 +170,7 @@ export default function DashboardPage() {
         message: error instanceof Error ? error.message : 'Video generation failed.',
       })
     }
-  }, [context.audioUrl, context.audioConfirmed, context.voicePreset, send, trackVideoJob])
+  }, [context.audioUrl, context.audioPath, context.audioConfirmed, context.voicePreset, send, trackVideoJob])
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -221,7 +224,11 @@ export default function DashboardPage() {
                 send({ type: 'GENERATE_AUDIO' })
                 const result = await generateAudio(context.script, preset)
                 if (result) {
-                  send({ type: 'AUDIO_READY', audioUrl: result.audioUrl })
+                  send({
+                    type: 'AUDIO_READY',
+                    audioUrl: result.audioUrl,
+                    audioPath: result.audioPath ?? null,
+                  })
                 }
               }}
               onConfirm={() => send({ type: 'CONFIRM_AUDIO' })}

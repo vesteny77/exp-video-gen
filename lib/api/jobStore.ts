@@ -169,6 +169,7 @@ class JobStore {
       progress: 100,
       result: {
         audioUrl: media?.audio ?? '/samples/demo-audio.wav',
+        audioPath: media?.audio ?? '/samples/demo-audio.wav',
         duration: media?.audioDuration ?? 15,
         preset: job.input?.preset,
         script: job.input?.script,
@@ -193,7 +194,7 @@ class JobStore {
 
     await sleep(interval)
 
-    const audioUrl: string | undefined = job.input?.audioUrl
+    const audioUrl: string | undefined = job.input?.audioPath ?? job.input?.audioUrl
     const media = DEMO_MEDIA[mediaKey]
 
     const videoUrl = media?.video ?? '/samples/demo-video.mp4'
@@ -206,9 +207,11 @@ class JobStore {
       progress: 100,
       result: {
         videoUrl,
+        videoPath: media?.video ?? '/samples/demo-video.mp4',
         duration: media?.videoDuration ?? 30,
         format: 'mp4',
         audioUrl,
+        audioPath: audioUrl,
         message,
         updatedAt: new Date().toISOString(),
       },
@@ -245,6 +248,7 @@ class JobStore {
         progress: 100,
         result: {
           audioUrl: toPublicUrl(data.audio_url, data.audio_path, 'audio'),
+          audioPath: data.audio_path,
           duration: null,
           preset,
           script,
@@ -258,6 +262,7 @@ class JobStore {
         progress: 100,
         result: {
           audioUrl: '/samples/demo-audio.wav',
+          audioPath: '/samples/demo-audio.wav',
           duration: 15,
           preset,
           script,
@@ -272,7 +277,7 @@ class JobStore {
     const job = this.jobs.get(jobId)
     if (!job) return
 
-    const audioPath: string | undefined = job.input?.audioUrl
+    const audioPath: string | undefined = job.input?.audioPath ?? job.input?.audioUrl
     if (!audioPath) {
       this.updateJob(jobId, {
         status: 'failed',
@@ -298,10 +303,12 @@ class JobStore {
         progress: 100,
         result: {
           videoUrl: toPublicUrl(data.video_url, data.video_path, 'video'),
+          videoPath: data.video_path,
           duration: null,
           format: 'mp4',
           preset,
-          audioUrl: audioPath,
+          audioUrl: toPublicUrl(undefined, audioPath, 'audio'),
+          audioPath,
           updatedAt: new Date().toISOString(),
         },
       })
@@ -312,10 +319,12 @@ class JobStore {
         progress: 100,
         result: {
           videoUrl: '/samples/demo-video.mp4',
+          videoPath: '/samples/demo-video.mp4',
           duration: 10,
           format: 'mp4',
           preset,
-          audioUrl: audioPath,
+          audioUrl: toPublicUrl(undefined, audioPath, 'audio'),
+          audioPath,
           updatedAt: new Date().toISOString(),
           fallback: true,
         },
@@ -386,6 +395,10 @@ function toPublicUrl(providedUrl: string | undefined, filePath: string | undefin
   }
 
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath
+  }
+
+  if (filePath.startsWith('/samples/') || filePath.startsWith('/demo/')) {
     return filePath
   }
 
